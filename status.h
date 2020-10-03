@@ -10,7 +10,7 @@ typedef struct {
 } Item ;
 
 static const Item items[] = {
-    {0, "Vol: ", "barvol", 10},
+    {0, "Vol: ", "./barvol", 10},
     {1, "", "date \"+%a %k:%M %d/%m/%y\"", 30}
 };
 
