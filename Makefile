@@ -1,6 +1,6 @@
 # Makefile
 
-TARGETS = status test
+TARGETS = status
 
 CC_C = $(CROSS_TOOL)gcc
 
