@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include "./status.h"
+#include "./dwmbar.h"
 #include <string.h>
 #include <unistd.h>
 #include <pthread.h>
