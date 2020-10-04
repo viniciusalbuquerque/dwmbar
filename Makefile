@@ -1,6 +1,6 @@
 # Makefile
 
-TARGETS = status
+TARGETS = dwmbar
 
 CC_C = $(CROSS_TOOL)gcc
 
