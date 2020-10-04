@@ -1,5 +1,6 @@
 typedef struct {
     const char* command;
+//    const char* attrs;
 } Program;
 
 typedef struct {
@@ -11,8 +12,11 @@ typedef struct {
 
 static const Item items[] = {
     {0, "Vol: ", "./barvol", 10},
-    {1, "", "date \"+%a %k:%M %d/%m/%y\"", 30}
+    {1, "", "date \'+%a %k:%M %d/%m/%y\'", 30}
 };
 
-static const char* delimeter = " | ";
+/*static const Program xsetroot = {
+    "xsetroot", {"-name", ""}
+};*/
 
+static const char* delimeter = " | ";
