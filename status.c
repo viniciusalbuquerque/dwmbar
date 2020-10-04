@@ -111,8 +111,8 @@ char* executeProgram(Program program) {
     int pstatus = pclose(fp);
     if (chars_read > 0) {
         char* returnBuffer = malloc(sizeof(char) * (BUFSIZ + 1));
+        memset(returnBuffer, '\0', BUFSIZ+1);
         strcpy(returnBuffer, buffer);
-        printf("execute program: %s\n", returnBuffer);
         return returnBuffer;
     }
     if (pstatus < 0) printf("Error closing file");
