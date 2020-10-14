@@ -1,15 +1,23 @@
 # Makefile
 
-TARGETS = dwmbar
+APP_NAME = dwmbar
+CC = $(CROSS_TOOL)gcc
+CFLAGS = -Wall -g -Werror -pthread
+DIRS = generated bin
+SRC_DIR = $(CURDIR)/src
+OBJ_DIR = $(CURDIR)/generated
+BIN_DIR = $(CURDIR)/bin
 
-CC_C = $(CROSS_TOOL)gcc
+all: $(APP_NAME)
 
-CFLAGS = -Wall -g -Werror -pthread#-std=c99 
+$(APP_NAME): $(OBJ_DIR)/*.o
+	mkdir -p $(BIN_DIR)
+	$(CC) $(CFLAGS) $^ -o $(BIN_DIR)/$@ 
 
-all: clean $(TARGETS)
-
-$(TARGETS):
-	$(CC_C) $(CFLAGS) $@.c -o $@
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
+	mkdir -p $(@D)
+	$(CC) $(CFLAGS) -c $^ -o $@
 
 clean:
-	rm -f $(TARGETS)
+	rm -f $(OBJ_DIR)/*
+	rm -f $(BIN_DIR)/$(APP_NAME)
