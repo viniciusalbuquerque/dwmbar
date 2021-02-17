@@ -15,12 +15,6 @@
 #define QUOTES                  "\""
 #define QUOTES_SIZE             1 
 
-
-char* executeProgram(Program program);
-char* buildAttrTextForXRoot(int textSize);
-char* getNoNewLineText(char* text);
-int getAttrsTextSize();
-
 char** status_data;
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
@@ -127,11 +121,11 @@ char* executeProgramForItem(Item item) {
 }
 
 void* statusUpdate(void* arg) {
-    Item item = *(Item *) arg;
-    int wait_time = item.wait_time;
+    Item* item = (Item *) arg;
+    int wait_time = item->wait_time;
     for(;;) {
-        char* result = executeProgramForItem(item);
-        updateStatusBar(result, item.order);
+        char* result = executeProgramForItem(*item);
+        updateStatusBar(result, item->order);
         free(result);
         sleep(wait_time);
     }
@@ -149,10 +143,10 @@ int main(int argc, char** args) {
     Item* item;
     for (int i = 0; i < NUM_OF_ITEMS; i++) {
         item = malloc(sizeof(Item));
-        (*item).title = items[i].title;
-        (*item).command = items[i].command;
-        (*item).order = items[i].order;
-        (*item).wait_time = items[i].wait_time;
+        item->title = items[i].title;
+        item->command = items[i].command;
+        item->order = items[i].order;
+        item->wait_time = items[i].wait_time;
         pthread_create(&pthread_group[i], NULL, statusUpdate, item);
     }
 
@@ -162,6 +156,7 @@ int main(int argc, char** args) {
 
     free(item);
 
+    free(pthread_group);
     for(int i = 0; i < NUM_OF_ITEMS; i++)
         free(status_data[i]);
     free(status_data);

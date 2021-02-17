@@ -29,3 +29,9 @@ static const Item items[] = {
 };*/
 
 static const char* delimeter = " | ";
+
+char* executeProgram(Program program);
+char* buildAttrTextForXRoot(int textSize);
+char* getNoNewLineText(char* text);
+int getAttrsTextSize();
+
