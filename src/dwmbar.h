@@ -1,37 +1,34 @@
-typedef struct {
-    const char* command;
-//    const char* attrs;
-} Program;
+#ifndef DWMBAR_H
+#define DWMBAR_H
 
-typedef struct {
-    int order;
+#include "program.h"
+
+typedef struct bar_item {
     const char* title;
-    const char* command;
-    int wait_time;
-} Item ;
+    int order;
+    int delay;
+    PROGRAM* program;
+} BAR_ITEM;
 
-static const Item items[] = {
-/*  order, title, script, time_interval */
-/*
- *  Note the even though we could change the order in the first element,
- *  this program is using this value more as an id to be able to do some
- *  information handling. So, if you want to change the order, change the
- *  actual order here in the array and also change the 'order' attribute to
- *  its correspondent place.
- *
- */
-    {0, "Vol: ", "barvol", 10},
-    {1, "", "date \'+%a %k:%M %d/%m/%y\'", 30}
+static PROGRAM xset = {
+    "xsetroot -name \"",
+    0
 };
 
-/*static const Program xsetroot = {
-    "xsetroot", {"-name", ""}
-};*/
+static PROGRAM vol = {
+    "barvol",
+    0
+};
 
-static const char* delimeter = " | ";
+static const char* date_attrs[] = { "\'+%a %H:%M %d/%m/%y\'", 0 };
+static PROGRAM date = {
+    "date",
+    date_attrs
+};
 
-char* executeProgram(Program program);
-char* buildAttrTextForXRoot(int textSize);
-char* getNoNewLineText(char* text);
-int getAttrsTextSize();
+static const BAR_ITEM bar_items[] = {
+    {"Vol: ", 0, 1, &vol },
+    {"", 1, 2, &date }, 
+};
 
+#endif
