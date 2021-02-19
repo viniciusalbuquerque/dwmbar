@@ -1,164 +1,113 @@
+#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include "./dwmbar.h"
 #include <string.h>
 #include <unistd.h>
-#include <pthread.h>
-#include <sys/types.h>
-#include <sys/wait.h>
+#include "dwmbar.h"
+#include "program.h"
 
-#define LENGTH(X)               (sizeof(X) / sizeof (X[0]))
-#define NUM_OF_ITEMS            (LENGTH(items))
-#define DELIMETER_LEN           (strlen(delimeter))
-#define X_SET_ROOT              "xsetroot"
-#define X_SET_ROOT_NAME         "-name"
-#define QUOTES                  "\""
-#define QUOTES_SIZE             1 
+#define MAX_CHARS_FOR_ITEM 50
+#define DELIMETER "|"
+#define QUOTE "\""
 
-char** status_data;
-pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+char** items_text = NULL;
 
-void setStatusBarText() {
-    int textSize = getAttrsTextSize();
-    textSize += 2*QUOTES_SIZE; 
-    char* command = buildAttrTextForXRoot(textSize);
-
-    printf("final: %s\n", command);
-
-    pthread_mutex_lock(&mutex);
-    Program p = { command };
-    char* result = executeProgram(p);
-    pthread_mutex_unlock(&mutex);
-
-    free(command);
-    free(result);
+int num_of_items() {
+    return sizeof(bar_items)/sizeof(BAR_ITEM);
 }
 
-char* buildAttrTextForXRoot(int attrsSize) {
-    int textSize = strlen(X_SET_ROOT) + strlen(X_SET_ROOT_NAME) + 2; // +2 for spaces between xsetroot and -name, -name and values
-    textSize += attrsSize;
+void free_items_text() {
+    if (!items_text) return;
 
-    char* attrText = malloc(sizeof(char*) * textSize);
-    memset(attrText, '\0', textSize);
-    strcat(attrText, X_SET_ROOT);
-    strcat(attrText, " ");
-    strcat(attrText, X_SET_ROOT_NAME);
-    strcat(attrText, " ");
-    strcat(attrText, QUOTES);
-    for (int i = 0; i < NUM_OF_ITEMS; i++) {
-        Item item = items[i];
-        const char* title = item.title;
-        strcat(attrText, title);
-        if (status_data[i] != NULL && strlen(status_data[i]) > 0) {
-            strcat(attrText, status_data[i]);
-        }
-        if (i != NUM_OF_ITEMS - 1) 
-            strcat(attrText, delimeter);
+    for (int i = 0; i < num_of_items(); i++) {
+        free(items_text[i]);
     }
-    strcat(attrText, QUOTES);
-    return attrText;
+    free(items_text);
 }
 
-char* getNoNewLineText(char* text) {
-    if (text == NULL) return text;
-    int textLength = strlen(text);
-    if (textLength == 0) return text;
-    if (text[textLength - 1] == '\n')
-        text[textLength - 1] = '\0';
-    return text;
-}
-
-int getAttrsTextSize() {
-    int textSize = strlen(X_SET_ROOT_NAME);
-    if (status_data == NULL) return textSize;
-    for (int i = 0; i < NUM_OF_ITEMS; i++) {
-        Item item = items[i];
-        textSize += strlen(item.title);
-        if (status_data[i] == NULL) continue;
-        getNoNewLineText(status_data[i]);
-        long int dataSize = strlen(status_data[i]);
-        textSize += dataSize;
-        if (i != NUM_OF_ITEMS - 1)
-            textSize += DELIMETER_LEN;
+void remove_break_line_from_end(char* str) {
+    for (int i = strlen(str) - 1; str[i] == '\n'; i--) {
+        str[i] = '\0';
     }
-    return textSize;
 }
 
-void updateStatusBar(char *buffer, int order) {
-    pthread_mutex_lock(&mutex);
-    strncpy(status_data[order], buffer, strlen(buffer));
-    pthread_mutex_unlock(&mutex);
-    setStatusBarText();
-}
-
-char* executeProgram(Program program) {
-    char buffer[BUFSIZ + 1];
-    memset(buffer, '\0', sizeof(buffer));
-    FILE* fp = popen(program.command, "r");
-
-    if (fp == NULL) {
-        printf("Error popen");
-        exit(EXIT_FAILURE);
+char** get_current_items_text() {
+    if (items_text != NULL) return items_text;
+    int n_items = num_of_items();
+    items_text = malloc(sizeof(char*) * n_items);
+    for (int i = 0; i < n_items; i++) {
+        items_text[i] = malloc(sizeof(char) * MAX_CHARS_FOR_ITEM + 1);
+        memset(items_text[i], '\0', MAX_CHARS_FOR_ITEM + 1);
     }
+    return items_text;
+}
 
-    int chars_read = fread(buffer, sizeof(char), BUFSIZ, fp);
-    int pstatus = pclose(fp);
-    if (chars_read > 0) {
-        char* returnBuffer = malloc(sizeof(char) * (BUFSIZ + 1));
-        memset(returnBuffer, '\0', BUFSIZ+1);
-        strcpy(returnBuffer, buffer);
-        return returnBuffer;
+char* build_item_string(char* result, const char* title, int order) {
+    int size = strlen(result) + strlen(title) + 4;
+    char* final_text = malloc(sizeof(char) * size);
+    memset(final_text, '\0', size);
+    strcat(final_text, title);
+    strcat(final_text, " ");
+    strcat(final_text, result);
+    remove_break_line_from_end(final_text);
+    if (order == num_of_items() - 1) {
+        strcat(final_text, QUOTE);
+    } else {
+        strcat(final_text, " ");
+        strcat(final_text, DELIMETER);
     }
-    if (pstatus < 0) printf("Error closing file");
-    return NULL;
+    return final_text;
 }
 
-char* executeProgramForItem(Item item) {
-    Program program;
-    program.command = item.command;
-    char* result = executeProgram(program);
-    return result;
+void update_dwm_bar(char* result, const char* title, int order) {
+    if (order < 0) return;
+    char** text = get_current_items_text();
+    free(text[order]);
+    char* final_item_text = build_item_string(result, title, order);
+    text[order] = final_item_text;
+    xset.attrs = (const char**) text;
+    program_execute(&xset);
 }
 
-void* statusUpdate(void* arg) {
-    Item* item = (Item *) arg;
-    int wait_time = item->wait_time;
+void* execute_program_in_thread(void* ptr_bar_item) {
+    printf("execute_program_in_thread called\n");
+    BAR_ITEM* item = (BAR_ITEM*) ptr_bar_item;
+    printf("pr: %s\n", item->program->command);
     for(;;) {
-        char* result = executeProgramForItem(*item);
-        updateStatusBar(result, item->order);
+        char* result = program_execute(item->program);
+        update_dwm_bar(result, item->title, item->order);
         free(result);
-        sleep(wait_time);
+        sleep(item->delay);
     }
+    free(item);
     pthread_exit(NULL);
 }
 
-int main(int argc, char** args) {
-
-    status_data = (char**) malloc(sizeof(char*) * NUM_OF_ITEMS);
-    for(int i = 0; i < NUM_OF_ITEMS; i++)
-        status_data[i] = malloc(sizeof(char*)*BUFSIZ);
-
-    pthread_t *pthread_group = malloc(sizeof(pthread_t) * NUM_OF_ITEMS);
-
-    Item* item;
-    for (int i = 0; i < NUM_OF_ITEMS; i++) {
-        item = malloc(sizeof(Item));
-        item->title = items[i].title;
-        item->command = items[i].command;
-        item->order = items[i].order;
-        item->wait_time = items[i].wait_time;
-        pthread_create(&pthread_group[i], NULL, statusUpdate, item);
+void create_threads_for_items() {
+    int num_items = num_of_items();
+    pthread_t pthread_ids[num_items];
+    BAR_ITEM* aux_bar_items[num_items];
+    for (int i = 0; i < num_items; i++) {
+        BAR_ITEM* bar_item = malloc(sizeof(BAR_ITEM));
+        bar_item->title = bar_items[i].title;
+        bar_item->order = bar_items[i].order;
+        bar_item->delay = bar_items[i].delay;
+        bar_item->program = bar_items[i].program;
+        pthread_create(&pthread_ids[i], NULL, execute_program_in_thread, bar_item);
+        aux_bar_items[i] = bar_item;
     }
 
-    for (int i = 0; i < NUM_OF_ITEMS; i++) {
-        pthread_join(pthread_group[i], NULL);
+    for (int i = 0; i < num_items; i++) {
+        pthread_join(pthread_ids[i], NULL);
     }
 
-    free(item);
+    for (int i = 0; i < num_items; i++) {
+        free(aux_bar_items[i]);
+    }
+}
 
-    free(pthread_group);
-    for(int i = 0; i < NUM_OF_ITEMS; i++)
-        free(status_data[i]);
-    free(status_data);
+int main() {
+    create_threads_for_items();
+    free_items_text();
     return 0;
 }
